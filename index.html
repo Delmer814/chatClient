@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lange="en">
+	<head>
+		<meta charset="utf-8">
+		<title>Socket.IO Express Example</title>
+		<link rel="stylesheet" type="text/css" href="style.css">
+
+	</head>
+	<body>
+		<header class="header"><h3 class='welcome'> Welcome <h3></header>
+		<section class="container">
+		<h1 class="Title">Socket.IO Example</h1>
+		<form id="set-nickname" class="setNickName">
+			<label for="nickname">Nickname:</label>
+			<input type="text" id="nickname"/>
+			<input type="submit"/>
+		</form>
+		<form style="text-align: center;"id="send-message">
+			<textarea id ="message"></textarea>
+			<input type="submit"/>
+		</form>
+			  <input type ="button" onclick = "setColor(colPurple)" value="purple">
+			  <input type ="button" onclick = "setColor(colGreen)" value="green">
+			  <input type ="button" onclick = "setColor(colYellow)" value="yellow">
+			  <input type ="button" onclick = "setColor(colRed)" value="red">
+			  <input type ="button" onclick = "clearCanvas()" value="clear canvas">
+			<br>
+			  <input type ="button" onclick = "setSize(sizeSmall)" value="small">
+			  <input type ="button" onclick = "setSize(sizeNorm)" value="normal">
+			  <input type ="button" onclick = "setSize(sizeLarge)" value="large">
+			  <input type ="button" onclick = "setSize(sizeHuge)" value="huge">
+
+		<div id="canvasDiv"></div>
+		
+		</section>
+		<section id="nicknames">
+			<h5 id="users" = "userList" > USERS</h5>
+			<u1 id="usersList"></u1>
+		</section>
+		
+		<section id="msgBox" class="msgContainer" >
+			<section id="messages" class="msgBox">
+		</section>
+	
+		<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js">
+		</script>
+		<script src="/socket.io/socket.io.js"></script>
+		<script>
+		var socket = io.connect();
+		jQuery(function ($) {
+			var nickname = $('#nickname');
+			var setNicknameForm = $('#set-nickname');
+			var nicknamesList = $('#nicknames u1');
+			var messageForm = $('#send-message');
+			var message = $('#message');
+			var messages = $('#messages');
+			
+			setNicknameForm.submit(function(event) {
+				event.preventDefault();
+				socket.emit('nickname', nickname.val(), function(data) {
+					if (data) {
+						console.log('Nickname set successfully');
+						setNicknameForm.hide();
+						messageForm.show();
+						
+					} else{
+						setNicknameForm.prepend('<p>Sorry - that nickname is already taken.</p>');
+					}
+				});
+			});
+			messageForm.submit(function(event) {
+				event.preventDefault();
+				socket.emit('user message', message.val());
+				message.val('').focus();
+			});
+			
+			var count = 0;
+			function checkState() {
+				count += 1;
+				if (count == 4){
+					redraw()
+					count = 0;
+				}
+			};	
+			
+			socket.on('clickX', function(data) {
+				clickX = data.clickX;
+				checkState();
+			});
+			socket.on('clickY', function(data) {
+				clickY = data.clickY;
+				checkState();
+			});
+			socket.on('clickDrag', function(data) {
+				clickDrag = data.clickDrag;
+				checkState();
+			});
+			socket.on('clickColor', function(data) {
+				clickColor = data.clickColor;
+				checkState();
+			});
+			socket.on('clickSize', function(data) {
+				clickSize = data.clickSize;
+				checkState();
+			});
+			
+			socket.on('nicknames', function(data) {
+				var html = '';
+				for (var i = 0; i < data.length; i++) {
+					html += '<li style ="color: white;">' + data[i] + '</li>';
+				}
+				nicknamesList.empty().append(html);
+			});
+			socket.on('user message', function(data) {
+				messages.append('<p><strong>'+ data.nick + ': </strong>' + data.message + '</p>');
+
+			});
+		});
+
+
+		// Canvas Color definitions
+		var colPurple = "#a329f5";
+		var colGreen = "#04a619";
+		var colYellow = "#fdff0d";
+		var colRed = "#ff0e15";
+
+		// Line Size definitions
+		var sizeSmall = 1;
+		var sizeNorm = 5;
+		var sizeLarge = 10;
+		var sizeHuge = 20;
+
+
+		// Color Holder
+		var curColor = colPurple;
+
+		// Color Selector
+		function setColor(color) {
+		 curColor = color;
+		};
+
+		// Point Size variables -> addclick
+		var clickSize = new Array();
+		var curSize = sizeNorm;
+
+		// Size Selector 
+		function setSize(size) {
+		 curSize = size;
+		};
+
+
+
+		// Canvas Clear
+		function clearCanvas(){
+			clickSize = new Array();
+			clickX = new Array();
+		    clickY = new Array();
+		    clickDrag = new Array();
+			clickColor = new Array();
+			canvas.width = canvas.width;
+			redraw();
+		}
+
+
+		
+		var clickColor = new Array();
+
+		// Canvas Construction Variables
+		var canvas;
+		var context;
+		var canvasWidth = 490;
+		var canvasHeight = 220;
+		var paint = false;
+
+		document.getElementById("canvasDiv").style.width="490px";
+		document.getElementById("canvasDiv").style.height="220px";
+
+		// Canvas Preparation
+		var canvasDiv = document.getElementById('canvasDiv');
+		canvas = document.createElement('canvas');
+		canvas.setAttribute('width', canvasWidth);
+		canvas.setAttribute('height', canvasHeight);
+		canvas.setAttribute('id', 'canvas');
+		canvasDiv.appendChild(canvas);
+		if(typeof G_vmlCanvasManager != 'undefined') {
+			canvas = G_vmlCanvasManager.initElement(canvas);
+		}
+
+		context = canvas.getContext("2d");
+
+		// Canvas Actions: Mouse Down
+		$('#canvas').mousedown(function(e){
+		  var mouseX = e.pageX - this.offsetLeft;
+		  var mouseY = e.pageY - this.offsetTop;
+
+		  paint = true;
+		  addClick(e.pageX - this.offsetLeft, e.pageY - this.offsetTop);
+		  redraw();
+		});
+
+		// Canvas Actions: Mouse Move
+		$('#canvas').mousemove(function(e){
+		  if(paint){
+		    addClick(e.pageX - this.offsetLeft, e.pageY - this.offsetTop, true);
+		    redraw();
+		  }
+		});
+
+		// Canvas Actions: Mouse Depressed
+		$('#canvas').mouseup(function(e){
+		 	paint = false;
+   	  		event.preventDefault();
+			socket.emit('clickSize',clickSize);
+			socket.emit('clickX', clickX);
+			socket.emit('clickY', clickY);
+			socket.emit('clickDrag', clickDrag);
+			socket.emit('clickColor', clickColor);
+			
+		});
+
+		// Canvas Action: Mouse Leave
+		$('#canvas').mouseleave(function(e){
+		  paint = false;
+		});
+
+		// Click Variables
+		var clickX = new Array();
+		var clickY = new Array();
+		var clickDrag = new Array();
+
+		// addClick function saves the click positions
+		function addClick(x, y, dragging)
+		{
+			// Records Canvas Action	
+		  	clickX.push(x);
+		  	clickY.push(y);
+		  	clickDrag.push(dragging);
+
+			// Records Color Selection
+			clickColor.push(curColor);
+
+			// Record Path size
+			clickSize.push(curSize);
+
+
+
+		}
+
+		function redraw(){
+			canvas.width = canvas.width;
+		  	context.lineJoin = "round";
+
+		  	for(var i=0; i < clickX.length; i++) {
+			 	context.beginPath();
+			    if(clickDrag[i] && i){
+			     	context.moveTo(clickX[i-1], clickY[i-1]);
+			     }else{
+			       	context.moveTo(clickX[i]-1, clickY[i]);
+			     }
+			     context.lineTo(clickX[i], clickY[i]);
+			     context.closePath();
+				 context.strokeStyle = clickColor[i];
+				 context.lineWidth = clickSize[i];
+			     context.stroke();	
+
+			} 
+
+		}
+
+	</script>
+
+	</body>
+</html>
